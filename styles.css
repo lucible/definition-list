@@ -26,5 +26,7 @@ dl dt {
 }
 
 .definition-list-hidden-colon {
-  display: none;
+  display: inline-block;
+  width: 0;
+  overflow: hidden;
 }
