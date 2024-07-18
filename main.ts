@@ -34,15 +34,14 @@ const definitionListPlugin = ViewPlugin.fromClass(class {
             const line = doc.line(i);
             const lineText = line.text;
 
-            if (i < doc.lines && doc.line(i + 1).text.startsWith(':')) {
+            if (i < doc.lines && doc.line(i + 1).text.startsWith(': ')) {
                 builder.add(line.from, line.to, Decoration.mark({class: "definition-list-dt"}));
-            } else if (lineText.startsWith(':')) {
-                const colonPos = line.from;
-                const spacePos = colonPos + 1;
-                const isCursorTouchingColon = this.isCursorTouching(selection, colonPos, spacePos + 1);
+            } else if (lineText.startsWith(': ')) {
+                const colonSpacePos = line.from;
+                const isCursorTouchingColonSpace = this.isCursorTouching(selection, colonSpacePos, colonSpacePos + 2);
 
-                if (!isCursorTouchingColon) {
-                    builder.add(colonPos, spacePos + 1, Decoration.replace({class: "definition-list-hidden-colon"}));
+                if (!isCursorTouchingColonSpace) {
+                    builder.add(colonSpacePos, colonSpacePos + 2, Decoration.mark({class: "definition-list-hidden-colon"}));
                 }
                 builder.add(line.from, line.to, Decoration.mark({class: "definition-list-dd"}));
             }
@@ -78,13 +77,13 @@ export default class DefinitionListPlugin extends Plugin {
         paragraphs.forEach((paragraph) => {
             const lines = paragraph.innerText.split('\n');
 
-            if (lines.length > 1 && lines[1].startsWith(':')) {
+            if (lines.length > 1 && lines[1].startsWith(': ')) {
                 const dl = document.createElement('dl');
 
                 lines.forEach(line => {
-                    if (line.startsWith(':')) {
+                    if (line.startsWith(': ')) {
                         const dd = document.createElement('dd');
-                        dd.textContent = line.substring(1).trim();
+                        dd.textContent = line.substring(2).trim();
                         dl.appendChild(dd);
                     } else {
                         const dt = document.createElement('dt');

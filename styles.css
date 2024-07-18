@@ -20,13 +20,10 @@ dl dt {
     margin-inline-start: 40px;
 }
 
-.definition-list-dd::before {
-  content: "";
-  display: none;
-}
-
 .definition-list-hidden-colon {
   display: inline-block;
+  height: 0;
   width: 0;
   overflow: hidden;
+  white-space: nowrap;
 }
