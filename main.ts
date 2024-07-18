@@ -34,9 +34,13 @@ const definitionListPlugin = ViewPlugin.fromClass(class {
             const line = doc.line(i);
             const lineText = line.text;
 
-            if (i < doc.lines && doc.line(i + 1).text.startsWith(': ')) {
+            // Check if the previous line is not a heading
+            const prevLine = i > 1 ? doc.line(i - 1).text : '';
+            const isPrevLineHeading = prevLine.startsWith('#');
+
+            if (i < doc.lines && doc.line(i + 1).text.startsWith(': ') && !isPrevLineHeading) {
                 builder.add(line.from, line.to, Decoration.mark({class: "definition-list-dt"}));
-            } else if (lineText.startsWith(': ')) {
+            } else if (lineText.startsWith(': ') && !isPrevLineHeading) {
                 const colonSpacePos = line.from;
                 const isCursorTouchingColonSpace = this.isCursorTouching(selection, colonSpacePos, colonSpacePos + 2);
 
@@ -64,6 +68,7 @@ const definitionListPlugin = ViewPlugin.fromClass(class {
 
 export default class DefinitionListPlugin extends Plugin {
     async onload() {
+        console.log('Loading DefinitionListPlugin');
         // Register the post processor for reading mode
         this.registerMarkdownPostProcessor(this.definitionListPostProcessor);
 
@@ -72,22 +77,28 @@ export default class DefinitionListPlugin extends Plugin {
     }
 
     definitionListPostProcessor: MarkdownPostProcessor = (element, context) => {
+        console.log('Processing markdown for definition lists');
         const paragraphs = element.querySelectorAll("p");
 
         paragraphs.forEach((paragraph) => {
-            const lines = paragraph.innerText.split('\n');
+            const lines = paragraph.innerHTML.split('<br>');
 
-            if (lines.length > 1 && lines[1].startsWith(': ')) {
+            if (lines.length > 1 && lines[1].trim().startsWith(': ')) {
+                console.log('Found potential definition list');
                 const dl = document.createElement('dl');
 
                 lines.forEach(line => {
-                    if (line.startsWith(': ')) {
+                    if (line.trim().startsWith(': ')) {
                         const dd = document.createElement('dd');
-                        dd.textContent = line.substring(2).trim();
+                        dd.innerHTML = line.substring(line.indexOf(':') + 1).trim();
                         dl.appendChild(dd);
                     } else {
                         const dt = document.createElement('dt');
-                        dt.textContent = line.trim();
+                        const trimmedLine = line.trim();
+                        console.log('Processing term:', trimmedLine);
+
+                        // Preserve original Markdown syntax
+                        dt.innerHTML = trimmedLine;
                         dl.appendChild(dt);
                     }
                 });
@@ -98,6 +109,6 @@ export default class DefinitionListPlugin extends Plugin {
     };
 
     onunload() {
-        // Cleanup code if needed
+        console.log('Unloading DefinitionListPlugin');
     }
 }
