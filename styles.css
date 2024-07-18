@@ -10,3 +10,12 @@ If your plugin does not need CSS, delete this file.
 dl dt {
   font-weight: bold;
 }
+
+.definition-list-dt {
+  font-weight: bold;
+}
+
+.definition-list-dd {
+    display: block;
+    margin-inline-start: 40px;
+}
