@@ -31,6 +31,8 @@ const definitionListPlugin = ViewPlugin.fromClass(class {
                 builder.add(line.from, line.to, Decoration.mark({class: "definition-list-dt"}));
             } else if (lineText.startsWith(':')) {
                 console.log(`DefinitionListPlugin: Found definition at line ${i}: ${lineText}`);
+                // Hide the ": " prefix using a simple mark decoration
+                builder.add(line.from, line.from + 2, Decoration.mark({class: "definition-list-hidden-colon"}));
                 builder.add(line.from, line.to, Decoration.mark({class: "definition-list-dd"}));
             }
         }

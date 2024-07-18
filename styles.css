@@ -19,3 +19,12 @@ dl dt {
     display: block;
     margin-inline-start: 40px;
 }
+
+.definition-list-dd::before {
+  content: "";
+  display: none;
+}
+
+.definition-list-hidden-colon {
+  display: none;
+}
