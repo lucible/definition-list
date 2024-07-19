@@ -2,12 +2,13 @@ import { Plugin, MarkdownPostProcessor, EditorView } from 'obsidian';
 import { ViewUpdate, ViewPlugin, DecorationSet, Decoration, EditorSelection } from '@codemirror/view';
 import { RangeSetBuilder } from '@codemirror/state';
 
+// Helper function to check if the editor is in Live Preview mode
 function isLivePreview(view: EditorView): boolean {
     const editorEl = view.dom.closest('.markdown-source-view');
-    if (!editorEl) return false;
-    return editorEl.classList.contains('is-live-preview');
+    return editorEl?.classList.contains('is-live-preview') ?? false;
 }
 
+// ViewPlugin for handling decorations in the editor
 const definitionListPlugin = ViewPlugin.fromClass(class {
     decorations: DecorationSet;
 
@@ -39,14 +40,17 @@ const definitionListPlugin = ViewPlugin.fromClass(class {
             const isPrevLineHeading = prevLine.startsWith('#');
 
             if (i < doc.lines && doc.line(i + 1).text.startsWith(': ') && !isPrevLineHeading) {
+                // Mark the term (dt) line
                 builder.add(line.from, line.to, Decoration.mark({class: "definition-list-dt"}));
             } else if (lineText.startsWith(': ') && !isPrevLineHeading) {
                 const colonSpacePos = line.from;
                 const isCursorTouchingColonSpace = this.isCursorTouching(selection, colonSpacePos, colonSpacePos + 2);
 
+                // Hide the colon-space if cursor is not touching it
                 if (!isCursorTouchingColonSpace) {
                     builder.add(colonSpacePos, colonSpacePos + 2, Decoration.mark({class: "definition-list-hidden-colon"}));
                 }
+                // Mark the definition (dd) line
                 builder.add(line.from, line.to, Decoration.mark({class: "definition-list-dd"}));
             }
         }
@@ -55,12 +59,7 @@ const definitionListPlugin = ViewPlugin.fromClass(class {
     }
 
     isCursorTouching(selection: EditorSelection, from: number, to: number): boolean {
-        for (let range of selection.ranges) {
-            if (range.from <= to && range.to >= from) {
-                return true;
-            }
-        }
-        return false;
+        return selection.ranges.some(range => range.from <= to && range.to >= from);
     }
 }, {
     decorations: v => v.decorations
@@ -72,7 +71,7 @@ export default class DefinitionListPlugin extends Plugin {
         // Register the post processor for reading mode
         this.registerMarkdownPostProcessor(this.definitionListPostProcessor);
 
-        // Register the editor extension
+        // Register the editor extension for live preview mode
         this.registerEditorExtension(definitionListPlugin);
     }
 
