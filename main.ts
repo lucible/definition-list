@@ -34,37 +34,41 @@ const definitionListPlugin = ViewPlugin.fromClass(class {
         for (let i = 1; i <= doc.lines; i++) {
             const line = doc.line(i);
             const lineText = line.text;
-
-            // Check if the previous line is not a heading
             const prevLine = i > 1 ? doc.line(i - 1).text : '';
-            const isPrevLineHeading = prevLine.startsWith('#');
+            const nextLine = i < doc.lines ? doc.line(i + 1).text : '';
 
-            if (i < doc.lines && (doc.line(i + 1).text.startsWith(': ') || doc.line(i + 1).text.startsWith('~ '))) {
-                // Mark the term (dt) line
-                builder.add(line.from, line.to, Decoration.mark({class: "definition-list-dt"}));
-            } else if ((lineText.startsWith(': ') || lineText.startsWith('~ ')) && !isPrevLineHeading) {
-                const markerPos = line.from;
-                const isCursorTouchingMarker = this.isCursorTouching(selection, markerPos, markerPos + 2);
+            const isDefinitionLine = lineText.match(/^(\s{0,2})([:~])\s/);
+            const isPrevLineHeading = prevLine.startsWith('#');
+            const isNextLineDefinition = nextLine.match(/^(\s{0,2})([:~])\s/);
+
+            if (isDefinitionLine && !isPrevLineHeading) {
+                // This is a definition line
+                const [, indent, marker] = isDefinitionLine;
+                const markerPos = line.from + indent.length;
+                const isCursorTouchingMarker = this.isCursorTouching(selection, markerPos, markerPos + 1);
 
                 if (isCursorTouchingMarker) {
                     // Apply dd-margin to the marker when cursor is touching it
-                    builder.add(markerPos, markerPos + 2, Decoration.mark({class: "definition-list-dd-margin"}));
+                    builder.add(markerPos, markerPos + 1, Decoration.mark({class: "definition-list-dd-margin"}));
                 } else {
                     // Hide the marker if cursor is not touching it
-                    builder.add(markerPos, markerPos + 2, Decoration.mark({class: "definition-list-hidden-marker"}));
+                    builder.add(markerPos, markerPos + 1, Decoration.mark({class: "definition-list-hidden-marker"}));
                     
                     // Find the first non-space character after the marker
-                    const contentStart = lineText.slice(2).search(/\S/) + 2;
+                    const contentStart = lineText.slice(indent.length + 2).search(/\S/) + indent.length + 2;
                     
                     // Add margin to the first visible content after the marker
                     builder.add(line.from + contentStart, line.from + contentStart + 1, Decoration.mark({class: "definition-list-dd-margin"}));
                 }
                 
                 // Mark the rest of the definition (dd) line content
-                const contentStart = lineText.slice(2).search(/\S/) + 2;
+                const contentStart = lineText.slice(indent.length + 2).search(/\S/) + indent.length + 2;
                 if (contentStart + 1 < lineText.length) {
                     builder.add(line.from + contentStart + 1, line.to, Decoration.mark({class: "definition-list-dd-content"}));
                 }
+            } else if (isNextLineDefinition && !lineText.startsWith('#')) {
+                // This is a term (dt) line
+                builder.add(line.from, line.to, Decoration.mark({class: "definition-list-dt"}));
             }
         }
 
