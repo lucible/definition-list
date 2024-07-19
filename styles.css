@@ -5,10 +5,18 @@ dl dt {
 .definition-list-dt {
   font-weight: bold;
 }
-
+/*
 .definition-list-dd {
-    display: block;
     margin-inline-start: 40px;
+}
+*/
+.definition-list-dd-margin {
+  display: inline-block;
+  margin-inline-start: 40px; /* Adjust as needed */
+}
+
+.definition-list-dd-content {
+  display: inline;
 }
 
 .definition-list-hidden-marker {

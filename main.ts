@@ -50,8 +50,17 @@ const definitionListPlugin = ViewPlugin.fromClass(class {
                 if (!isCursorTouchingMarker) {
                     builder.add(markerPos, markerPos + 2, Decoration.mark({class: "definition-list-hidden-marker"}));
                 }
-                // Mark the definition (dd) line
-                builder.add(line.from, line.to, Decoration.mark({class: "definition-list-dd"}));
+                
+                // Find the first non-space character after the marker
+                const contentStart = lineText.slice(2).search(/\S/) + 2;
+                
+                // Add margin to the first visible content after the marker
+                builder.add(line.from + contentStart, line.from + contentStart + 1, Decoration.mark({class: "definition-list-dd-margin"}));
+                
+                // Mark the rest of the definition (dd) line content
+                if (contentStart + 1 < lineText.length) {
+                    builder.add(line.from + contentStart + 1, line.to, Decoration.mark({class: "definition-list-dd-content"}));
+                }
             }
         }
 
@@ -64,6 +73,8 @@ const definitionListPlugin = ViewPlugin.fromClass(class {
 }, {
     decorations: v => v.decorations
 });
+
+// ... rest of the plugin code remains the same
 
 export default class DefinitionListPlugin extends Plugin {
     async onload() {
