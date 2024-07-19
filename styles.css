@@ -1,12 +1,3 @@
-/*
-
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
-
-If your plugin does not need CSS, delete this file.
-
-*/
-
 dl dt {
   font-weight: bold;
 }
@@ -20,10 +11,9 @@ dl dt {
     margin-inline-start: 40px;
 }
 
-.definition-list-hidden-colon {
+.definition-list-hidden-marker {
   display: inline-block;
+  overflow: hidden;
   height: 0;
   width: 0;
-  overflow: hidden;
-  white-space: nowrap;
 }

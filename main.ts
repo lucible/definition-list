@@ -8,7 +8,7 @@ function isLivePreview(view: EditorView): boolean {
     return editorEl?.classList.contains('is-live-preview') ?? false;
 }
 
-// ViewPlugin for handling decorations in the editor
+// ViewPlugin for handling decorations in the editor (Live Preview)
 const definitionListPlugin = ViewPlugin.fromClass(class {
     decorations: DecorationSet;
 
@@ -39,16 +39,16 @@ const definitionListPlugin = ViewPlugin.fromClass(class {
             const prevLine = i > 1 ? doc.line(i - 1).text : '';
             const isPrevLineHeading = prevLine.startsWith('#');
 
-            if (i < doc.lines && doc.line(i + 1).text.startsWith(': ') && !isPrevLineHeading) {
+            if (i < doc.lines && (doc.line(i + 1).text.startsWith(': ') || doc.line(i + 1).text.startsWith('~ '))) {
                 // Mark the term (dt) line
                 builder.add(line.from, line.to, Decoration.mark({class: "definition-list-dt"}));
-            } else if (lineText.startsWith(': ') && !isPrevLineHeading) {
-                const colonSpacePos = line.from;
-                const isCursorTouchingColonSpace = this.isCursorTouching(selection, colonSpacePos, colonSpacePos + 2);
+            } else if ((lineText.startsWith(': ') || lineText.startsWith('~ ')) && !isPrevLineHeading) {
+                const markerPos = line.from;
+                const isCursorTouchingMarker = this.isCursorTouching(selection, markerPos, markerPos + 2);
 
-                // Hide the colon-space if cursor is not touching it
-                if (!isCursorTouchingColonSpace) {
-                    builder.add(colonSpacePos, colonSpacePos + 2, Decoration.mark({class: "definition-list-hidden-colon"}));
+                // Hide the marker if cursor is not touching it
+                if (!isCursorTouchingMarker) {
+                    builder.add(markerPos, markerPos + 2, Decoration.mark({class: "definition-list-hidden-marker"}));
                 }
                 // Mark the definition (dd) line
                 builder.add(line.from, line.to, Decoration.mark({class: "definition-list-dd"}));
@@ -81,27 +81,64 @@ export default class DefinitionListPlugin extends Plugin {
 
         paragraphs.forEach((paragraph) => {
             const lines = paragraph.innerHTML.split('<br>');
+            let dl: HTMLDListElement | null = null;
+            let currentTerm: string | null = null;
+            let isDefinitionList = false;
+            let skipNextLine = false;
 
-            if (lines.length > 1 && lines[1].trim().startsWith(': ')) {
-                console.log('Found potential definition list');
-                const dl = document.createElement('dl');
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                const nextLine = i < lines.length - 1 ? lines[i + 1].trim() : '';
+                const definitionMatch = line.match(/^([:~])\s(.+)/);
+                const indentedDefinitionMatch = line.match(/^\s{1,2}([:~])\s(.+)/);
 
-                lines.forEach(line => {
-                    if (line.trim().startsWith(': ')) {
-                        const dd = document.createElement('dd');
-                        dd.innerHTML = line.substring(line.indexOf(':') + 1).trim();
-                        dl.appendChild(dd);
-                    } else {
-                        const dt = document.createElement('dt');
-                        const trimmedLine = line.trim();
-                        console.log('Processing term:', trimmedLine);
+                if (skipNextLine) {
+                    skipNextLine = false;
+                    continue;
+                }
 
-                        // Preserve original Markdown syntax
-                        dt.innerHTML = trimmedLine;
-                        dl.appendChild(dt);
+                if ((definitionMatch || indentedDefinitionMatch) && isDefinitionList) {
+                    if (!dl) {
+                        dl = document.createElement('dl');
                     }
-                });
 
+                    if (currentTerm) {
+                        const dt = document.createElement('dt');
+                        dt.innerHTML = currentTerm;
+                        dl.appendChild(dt);
+                        currentTerm = null;
+                    }
+
+                    const dd = document.createElement('dd');
+                    dd.innerHTML = (definitionMatch ? definitionMatch[2] : indentedDefinitionMatch![2]);
+                    dl.appendChild(dd);
+                } else if ((nextLine.match(/^[:~]\s/) || nextLine.match(/^\s{1,2}[:~]\s/)) && !line.match(/^#+\s/)) {
+                    // This line is a term, but not if it's a heading
+                    if (currentTerm) {
+                        // If there's a previous term, add it to the list
+                        const dt = document.createElement('dt');
+                        dt.innerHTML = currentTerm;
+                        dl!.appendChild(dt);
+                    }
+                    currentTerm = line;
+                    isDefinitionList = true;
+                } else if (isDefinitionList) {
+                    // End of definition list
+                    if (currentTerm) {
+                        const dt = document.createElement('dt');
+                        dt.innerHTML = currentTerm;
+                        dl!.appendChild(dt);
+                        currentTerm = null;
+                    }
+                    isDefinitionList = false;
+                } else if (line.match(/^#+\s/)) {
+                    // If it's a heading, skip the next line to avoid parsing it as a definition
+                    skipNextLine = true;
+                }
+            }
+
+            if (dl && dl.childNodes.length > 0) {
+                // Replace the paragraph with the definition list
                 paragraph.replaceWith(dl);
             }
         });
