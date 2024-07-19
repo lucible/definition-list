@@ -113,6 +113,7 @@ const definitionListPlugin = ViewPlugin.fromClass(class {
         return builder.finish();
     }
 
+    // Helper method to check if the cursor is touching a given range
     isCursorTouching(selection: EditorSelection, from: number, to: number): boolean {
         return selection.ranges.some(range => range.from <= to && range.to >= from);
     }
@@ -130,6 +131,7 @@ export default class DefinitionListPlugin extends Plugin {
         this.registerEditorExtension(definitionListPlugin);
     }
 
+    // Post-processor for handling definition lists in reading mode
     definitionListPostProcessor: MarkdownPostProcessor = (element, context) => {
         console.log('Processing markdown for definition lists');
         const paragraphs = element.querySelectorAll("p");
