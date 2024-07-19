@@ -1,6 +1,6 @@
-import { Plugin, MarkdownPostProcessor, EditorView } from 'obsidian';
-import { ViewUpdate, ViewPlugin, DecorationSet, Decoration, EditorSelection } from '@codemirror/view';
-import { RangeSetBuilder } from '@codemirror/state';
+import { Plugin, MarkdownPostProcessor } from 'obsidian';
+import { EditorView, ViewUpdate, ViewPlugin, DecorationSet, Decoration } from '@codemirror/view';
+import { EditorSelection, RangeSetBuilder } from '@codemirror/state';
 
 // Helper function to check if the editor is in Live Preview mode
 function isLivePreview(view: EditorView): boolean {
