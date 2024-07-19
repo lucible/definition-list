@@ -31,9 +31,22 @@ const definitionListPlugin = ViewPlugin.fromClass(class {
         const doc = view.state.doc;
         const selection = view.state.selection;
 
+        let inCodeBlock = false;
+
         for (let i = 1; i <= doc.lines; i++) {
             const line = doc.line(i);
             const lineText = line.text;
+
+            // Check for code block delimiters
+            if (lineText.trim().startsWith('```')) {
+                inCodeBlock = !inCodeBlock;
+                continue;
+            }
+
+            if (inCodeBlock) {
+                continue;  // Skip processing if we're inside a code block
+            }
+
             const prevLine = i > 1 ? doc.line(i - 1).text : '';
             const nextLine = i < doc.lines ? doc.line(i + 1).text : '';
 
