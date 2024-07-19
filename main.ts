@@ -46,18 +46,22 @@ const definitionListPlugin = ViewPlugin.fromClass(class {
                 const markerPos = line.from;
                 const isCursorTouchingMarker = this.isCursorTouching(selection, markerPos, markerPos + 2);
 
-                // Hide the marker if cursor is not touching it
-                if (!isCursorTouchingMarker) {
+                if (isCursorTouchingMarker) {
+                    // Apply dd-margin to the marker when cursor is touching it
+                    builder.add(markerPos, markerPos + 2, Decoration.mark({class: "definition-list-dd-margin"}));
+                } else {
+                    // Hide the marker if cursor is not touching it
                     builder.add(markerPos, markerPos + 2, Decoration.mark({class: "definition-list-hidden-marker"}));
+                    
+                    // Find the first non-space character after the marker
+                    const contentStart = lineText.slice(2).search(/\S/) + 2;
+                    
+                    // Add margin to the first visible content after the marker
+                    builder.add(line.from + contentStart, line.from + contentStart + 1, Decoration.mark({class: "definition-list-dd-margin"}));
                 }
                 
-                // Find the first non-space character after the marker
-                const contentStart = lineText.slice(2).search(/\S/) + 2;
-                
-                // Add margin to the first visible content after the marker
-                builder.add(line.from + contentStart, line.from + contentStart + 1, Decoration.mark({class: "definition-list-dd-margin"}));
-                
                 // Mark the rest of the definition (dd) line content
+                const contentStart = lineText.slice(2).search(/\S/) + 2;
                 if (contentStart + 1 < lineText.length) {
                     builder.add(line.from + contentStart + 1, line.to, Decoration.mark({class: "definition-list-dd-content"}));
                 }
