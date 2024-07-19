@@ -50,19 +50,26 @@ const definitionListPlugin = ViewPlugin.fromClass(class {
             const prevLine = i > 1 ? doc.line(i - 1).text : '';
             const nextLine = i < doc.lines ? doc.line(i + 1).text : '';
 
-            const definitionMatch = lineText.match(/^(\s{0,2})([:~])\s/);
+            // Check if the line is part of a blockquote
+            const blockquoteMatch = lineText.match(/^(\s*>\s*)/);
+            const blockquotePrefix = blockquoteMatch ? blockquoteMatch[1] : '';
+
+            // Remove blockquote prefix for definition matching
+            const contentWithoutBlockquote = lineText.slice(blockquotePrefix.length);
+
+            const definitionMatch = contentWithoutBlockquote.match(/^(\s{0,2})([:~])\s/);
             const isPrevLineHeading = prevLine.startsWith('#');
-            const isNextLineDefinition = nextLine.match(/^(\s{0,2})([:~])\s/);
-            const isListItem = lineText.match(/^\s*(-|\d+\.)\s/);
-            const isPrevLineListItem = prevLine.match(/^\s*(-|\d+\.)\s/);
+            const isNextLineDefinition = nextLine.slice(blockquotePrefix.length).match(/^(\s{0,2})([:~])\s/);
+            const isListItem = contentWithoutBlockquote.match(/^\s*(-|\d+\.)\s/);
+            const isPrevLineListItem = prevLine.slice(blockquotePrefix.length).match(/^\s*(-|\d+\.)\s/);
 
             if (definitionMatch && !isPrevLineHeading && !isPrevLineListItem) {
                 const [fullMatch, indent, marker] = definitionMatch;
                 const isIndented = indent.length > 0;
-                const indentStartPos = line.from;
-                const indentEndPos = line.from + indent.length;
+                const indentStartPos = line.from + blockquotePrefix.length;
+                const indentEndPos = indentStartPos + indent.length;
                 const markerStartPos = indentEndPos;
-                const markerEndPos = line.from + fullMatch.length;
+                const markerEndPos = indentStartPos + fullMatch.length;
 
                 const isCursorTouchingIndent = this.isCursorTouching(selection, indentStartPos, indentEndPos);
                 const isCursorBetweenIndentAndMarker = this.isCursorTouching(selection, indentEndPos, markerStartPos);
@@ -97,9 +104,9 @@ const definitionListPlugin = ViewPlugin.fromClass(class {
                 if (markerEndPos < line.to) {
                     builder.add(markerEndPos, line.to, Decoration.mark({class: "definition-list-dd-content"}));
                 }
-            } else if (isNextLineDefinition && !lineText.startsWith('#') && !isListItem) {
+            } else if (isNextLineDefinition && !contentWithoutBlockquote.startsWith('#') && !isListItem) {
                 // This is a term (dt) line
-                builder.add(line.from, line.to, Decoration.mark({class: "definition-list-dt"}));
+                builder.add(line.from + blockquotePrefix.length, line.to, Decoration.mark({class: "definition-list-dt"}));
             }
         }
 
@@ -112,8 +119,6 @@ const definitionListPlugin = ViewPlugin.fromClass(class {
 }, {
     decorations: v => v.decorations
 });
-
-// ... rest of the plugin code remains the same
 
 export default class DefinitionListPlugin extends Plugin {
     async onload() {
