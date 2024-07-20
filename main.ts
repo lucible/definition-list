@@ -67,21 +67,21 @@ const definitionListPlugin = ViewPlugin.fromClass(class {
                     attributes: { class: "definition-list-dd" }
                 }));
 
-                // Add mark decoration for the definition mark
+                // Add mark decoration for the indentation + definition mark
                 const [fullMatch, indent, marker] = definitionMatch;
-                const markerStartPos = line.from + blockquotePrefix.length + indent.length;
-                const markerEndPos = markerStartPos + marker.length + 1; // +1 for the space after the marker
+                const indentStartPos = line.from + blockquotePrefix.length;
+                const markerEndPos = indentStartPos + indent.length + marker.length + 1; // +1 for the space after the marker
 
-                const isCursorTouchingMarker = selection.ranges.some(range => 
-                    range.from <= markerEndPos && range.to >= markerStartPos
+                const isCursorTouchingIndentOrMarker = selection.ranges.some(range => 
+                    range.from <= markerEndPos && range.to >= indentStartPos
                 );
 
-                if (isCursorTouchingMarker) {
-                    builder.add(markerStartPos, markerEndPos, Decoration.mark({
+                if (isCursorTouchingIndentOrMarker) {
+                    builder.add(indentStartPos, markerEndPos, Decoration.mark({
                         attributes: { class: "definition-list-visible-marker" }
                     }));
                 } else {
-                    builder.add(markerStartPos, markerEndPos, Decoration.mark({
+                    builder.add(indentStartPos, markerEndPos, Decoration.mark({
                         attributes: { class: "definition-list-hidden-marker" }
                     }));
                 }
