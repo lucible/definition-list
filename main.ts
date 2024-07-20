@@ -2,86 +2,109 @@ import { Plugin, MarkdownPostProcessor } from 'obsidian';
 import { EditorView, ViewUpdate, ViewPlugin, DecorationSet, Decoration } from '@codemirror/view';
 import { RangeSetBuilder } from '@codemirror/state';
 
-// Helper function to check if the editor is in Live Preview mode
 function isLivePreview(view: EditorView): boolean {
     const editorEl = view.dom.closest('.markdown-source-view');
     return editorEl?.classList.contains('is-live-preview') ?? false;
 }
 
-// ViewPlugin for handling decorations in the editor (Live Preview)
 const definitionListPlugin = ViewPlugin.fromClass(class {
     decorations: DecorationSet;
 
     constructor(view: EditorView) {
         this.decorations = this.buildDecorations(view);
-        console.log('DefinitionListPlugin constructed');
     }
 
     update(update: ViewUpdate) {
-        if (update.docChanged || update.viewportChanged) {
-            console.log('Updating decorations');
+        if (update.docChanged || update.viewportChanged || update.selectionSet) {
             this.decorations = this.buildDecorations(update.view);
         }
     }
 
     buildDecorations(view: EditorView) {
         if (!isLivePreview(view)) {
-            console.log('Not in Live Preview mode');
             return Decoration.none;
         }
 
         const builder = new RangeSetBuilder<Decoration>();
         const doc = view.state.doc;
+        const selection = view.state.selection;
 
         let inCodeBlock = false;
-        let decorationsAdded = 0;
+        let lastTermLine = -1;
+        let lastLineWasHeading = false;
+        let lastLineWasList = false;
 
         for (let i = 1; i <= doc.lines; i++) {
             const line = doc.line(i);
             const lineText = line.text;
 
-            // Check for code block delimiters
             if (lineText.trim().startsWith('```')) {
                 inCodeBlock = !inCodeBlock;
                 continue;
             }
 
-            if (inCodeBlock) {
-                continue;  // Skip processing if we're inside a code block
-            }
+            if (inCodeBlock) continue;
 
-            const prevLine = i > 1 ? doc.line(i - 1).text : '';
-            const nextLine = i < doc.lines ? doc.line(i + 1).text : '';
-
-            // Check if the line is part of a blockquote
             const blockquoteMatch = lineText.match(/^(\s*>\s*)/);
             const blockquotePrefix = blockquoteMatch ? blockquoteMatch[1] : '';
-
-            // Remove blockquote prefix for definition matching
             const contentWithoutBlockquote = lineText.slice(blockquotePrefix.length);
 
             const definitionMatch = contentWithoutBlockquote.match(/^(\s{0,2})([:~])\s/);
-            const isPrevLineHeading = prevLine.startsWith('#');
-            const isNextLineDefinition = nextLine.slice(blockquotePrefix.length).match(/^(\s{0,2})([:~])\s/);
+            const isHeading = contentWithoutBlockquote.startsWith('#');
             const isListItem = contentWithoutBlockquote.match(/^\s*(-|\d+\.)\s/);
+            const nextLine = i < doc.lines ? doc.line(i + 1).text : '';
+            const isNextLineDefinition = nextLine.slice(blockquotePrefix.length).match(/^(\s{0,2})([:~])\s/);
 
-            if (definitionMatch && !isPrevLineHeading) {
+            if (isHeading) {
+                lastLineWasHeading = true;
+                lastLineWasList = false;
+            } else if (isListItem) {
+                lastLineWasList = true;
+                lastLineWasHeading = false;
+            } else if (definitionMatch && !lastLineWasHeading && !lastLineWasList) {
+                // Add line decoration for the whole definition
                 builder.add(line.from, line.from, Decoration.line({
                     attributes: { class: "definition-list-dd" }
                 }));
-                decorationsAdded++;
-                console.log(`Added dd decoration to line ${i}: ${lineText}`);
-            } else if (isNextLineDefinition && !contentWithoutBlockquote.startsWith('#') && !isListItem) {
+
+                // Add mark decoration for the definition mark
+                const [fullMatch, indent, marker] = definitionMatch;
+                const markerStartPos = line.from + blockquotePrefix.length + indent.length;
+                const markerEndPos = markerStartPos + marker.length + 1; // +1 for the space after the marker
+
+                const isCursorTouchingMarker = selection.ranges.some(range => 
+                    range.from <= markerEndPos && range.to >= markerStartPos
+                );
+
+                if (isCursorTouchingMarker) {
+                    builder.add(markerStartPos, markerEndPos, Decoration.mark({
+                        attributes: { class: "definition-list-visible-marker" }
+                    }));
+                } else {
+                    builder.add(markerStartPos, markerEndPos, Decoration.mark({
+                        attributes: { class: "definition-list-hidden-marker" }
+                    }));
+                }
+
+                // Update lastTermLine if this is not an indented definition
+                if (indent.length === 0) {
+                    lastTermLine = i - 1;
+                }
+            } else if ((isNextLineDefinition || i === lastTermLine + 1) && !isHeading && !isListItem) {
                 // This is a term (dt) line
                 builder.add(line.from, line.from, Decoration.line({
                     attributes: { class: "definition-list-dt" }
                 }));
-                decorationsAdded++;
-                console.log(`Added dt decoration to line ${i}: ${lineText}`);
+                lastTermLine = i;
+            }
+
+            // Reset flags if the current line is not a heading or list item
+            if (!isHeading && !isListItem) {
+                lastLineWasHeading = false;
+                lastLineWasList = false;
             }
         }
 
-        console.log(`Total decorations added: ${decorationsAdded}`);
         return builder.finish();
     }
 }, {
