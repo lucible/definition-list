@@ -1,6 +1,6 @@
 import { Plugin, MarkdownPostProcessor } from 'obsidian';
 import { EditorView, ViewUpdate, ViewPlugin, DecorationSet, Decoration } from '@codemirror/view';
-import { EditorSelection, RangeSetBuilder } from '@codemirror/state';
+import { RangeSetBuilder } from '@codemirror/state';
 
 // Helper function to check if the editor is in Live Preview mode
 function isLivePreview(view: EditorView): boolean {
@@ -14,24 +14,27 @@ const definitionListPlugin = ViewPlugin.fromClass(class {
 
     constructor(view: EditorView) {
         this.decorations = this.buildDecorations(view);
+        console.log('DefinitionListPlugin constructed');
     }
 
     update(update: ViewUpdate) {
-        if (update.docChanged || update.viewportChanged || update.selectionSet) {
+        if (update.docChanged || update.viewportChanged) {
+            console.log('Updating decorations');
             this.decorations = this.buildDecorations(update.view);
         }
     }
 
     buildDecorations(view: EditorView) {
         if (!isLivePreview(view)) {
+            console.log('Not in Live Preview mode');
             return Decoration.none;
         }
 
         const builder = new RangeSetBuilder<Decoration>();
         const doc = view.state.doc;
-        const selection = view.state.selection;
 
         let inCodeBlock = false;
+        let decorationsAdded = 0;
 
         for (let i = 1; i <= doc.lines; i++) {
             const line = doc.line(i);
@@ -61,61 +64,25 @@ const definitionListPlugin = ViewPlugin.fromClass(class {
             const isPrevLineHeading = prevLine.startsWith('#');
             const isNextLineDefinition = nextLine.slice(blockquotePrefix.length).match(/^(\s{0,2})([:~])\s/);
             const isListItem = contentWithoutBlockquote.match(/^\s*(-|\d+\.)\s/);
-            const isPrevLineListItem = prevLine.slice(blockquotePrefix.length).match(/^\s*(-|\d+\.)\s/);
 
-            if (definitionMatch && !isPrevLineHeading && !isPrevLineListItem) {
-                const [fullMatch, indent, marker] = definitionMatch;
-                const isIndented = indent.length > 0;
-                const indentStartPos = line.from + blockquotePrefix.length;
-                const indentEndPos = indentStartPos + indent.length;
-                const markerStartPos = indentEndPos;
-                const markerEndPos = indentStartPos + fullMatch.length;
-
-                const isCursorTouchingIndent = this.isCursorTouching(selection, indentStartPos, indentEndPos);
-                const isCursorBetweenIndentAndMarker = this.isCursorTouching(selection, indentEndPos, markerStartPos);
-                const isCursorTouchingMarker = this.isCursorTouching(selection, markerStartPos, markerEndPos);
-
-                if (isIndented) {
-                    if (isCursorTouchingIndent || isCursorBetweenIndentAndMarker || isCursorTouchingMarker) {
-                        // Apply dd-margin to indent spaces
-                        builder.add(indentStartPos, indentEndPos, Decoration.mark({class: "definition-list-dd-margin"}));
-                    }
-
-                    if (isCursorTouchingIndent || isCursorBetweenIndentAndMarker || isCursorTouchingMarker) {
-                        // Apply dd-content to marker
-                        builder.add(markerStartPos, markerEndPos, Decoration.mark({class: "definition-list-dd-content"}));
-                    } else {
-                        // Hide marker if cursor is not touching or between
-                        builder.add(markerStartPos, markerEndPos, Decoration.mark({class: "definition-list-hidden-marker"}));
-                        // Add margin to first visible content after marker
-                        builder.add(markerEndPos, markerEndPos + 1, Decoration.mark({class: "definition-list-dd-margin"}));
-                    }
-                } else {
-                    // Non-indented definition handling
-                    if (isCursorTouchingMarker) {
-                        builder.add(markerStartPos, markerEndPos, Decoration.mark({class: "definition-list-dd-margin"}));
-                    } else {
-                        builder.add(markerStartPos, markerEndPos, Decoration.mark({class: "definition-list-hidden-marker"}));
-                        builder.add(markerEndPos, markerEndPos + 1, Decoration.mark({class: "definition-list-dd-margin"}));
-                    }
-                }
-                
-                // Mark the rest of the definition (dd) line content
-                if (markerEndPos < line.to) {
-                    builder.add(markerEndPos, line.to, Decoration.mark({class: "definition-list-dd-content"}));
-                }
+            if (definitionMatch && !isPrevLineHeading) {
+                builder.add(line.from, line.from, Decoration.line({
+                    attributes: { class: "definition-list-dd" }
+                }));
+                decorationsAdded++;
+                console.log(`Added dd decoration to line ${i}: ${lineText}`);
             } else if (isNextLineDefinition && !contentWithoutBlockquote.startsWith('#') && !isListItem) {
                 // This is a term (dt) line
-                builder.add(line.from + blockquotePrefix.length, line.to, Decoration.mark({class: "definition-list-dt"}));
+                builder.add(line.from, line.from, Decoration.line({
+                    attributes: { class: "definition-list-dt" }
+                }));
+                decorationsAdded++;
+                console.log(`Added dt decoration to line ${i}: ${lineText}`);
             }
         }
 
+        console.log(`Total decorations added: ${decorationsAdded}`);
         return builder.finish();
-    }
-
-    // Helper method to check if the cursor is touching a given range
-    isCursorTouching(selection: EditorSelection, from: number, to: number): boolean {
-        return selection.ranges.some(range => range.from <= to && range.to >= from);
     }
 }, {
     decorations: v => v.decorations
@@ -123,6 +90,7 @@ const definitionListPlugin = ViewPlugin.fromClass(class {
 
 export default class DefinitionListPlugin extends Plugin {
     async onload() {
+        console.log('Loading DefinitionListPlugin');
         // Register the post processor for reading mode
         this.registerMarkdownPostProcessor(this.definitionListPostProcessor);
 
@@ -200,6 +168,6 @@ export default class DefinitionListPlugin extends Plugin {
     };
 
     onunload() {
-        // Placeholder
+        console.log('Unloading DefinitionListPlugin');
     }
 }
