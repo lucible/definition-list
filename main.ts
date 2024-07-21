@@ -143,6 +143,19 @@ export default class DefinitionListPlugin extends Plugin {
             let isDefinitionList = false;
             let skipNextLine = false;
     
+            function isNotTerm(line: string): boolean {
+                return (
+                    line.startsWith('#') || // Heading
+                    line.match(/^(-|\*|\+|\d+\.)\s/) !== null || // List item
+                    line.startsWith('![') || // Image
+                    line.match(/^(-{3,}|\*{3,}|_{3,})/) !== null || // Horizontal rule
+                    line.startsWith('[^') || // Footnote
+                    line.startsWith('|') || // Table
+                    line.startsWith('$$') || // Math block
+                    line.startsWith('^') // Link reference
+                );
+            }
+    
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i].trim();
                 const nextLine = i < lines.length - 1 ? lines[i + 1].trim() : '';
@@ -170,8 +183,8 @@ export default class DefinitionListPlugin extends Plugin {
                     dd.innerHTML = (definitionMatch ? definitionMatch[2] : indentedDefinitionMatch![2]);
                     dl.appendChild(dd);
                     isDefinitionList = true;
-                } else if ((nextLine.match(/^[:~]\s/) || nextLine.match(/^\s{1,2}[:~]\s/)) && !line.match(/^#+\s/)) {
-                    // This line is a term, but not if it's a heading
+                } else if ((nextLine.match(/^[:~]\s/) || nextLine.match(/^\s{1,2}[:~]\s/)) && !isNotTerm(line)) {
+                    // This line is a term
                     if (currentTerm) {
                         // If there's a previous term, add it to the list
                         if (!dl) {
@@ -192,9 +205,12 @@ export default class DefinitionListPlugin extends Plugin {
                         currentTerm = null;
                     }
                     isDefinitionList = false;
-                } else if (line.match(/^#+\s/)) {
-                    // If it's a heading, skip the next line to avoid parsing it as a definition
-                    skipNextLine = true;
+                } else if (isNotTerm(line)) {
+                    // If it's not a term, reset the definition list state
+                    isDefinitionList = false;
+                    currentTerm = null;
+                    // Don't skip the next line, as it might be part of the non-term content
+                    // skipNextLine = true;
                 }
             }
     
