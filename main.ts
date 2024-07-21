@@ -122,7 +122,6 @@ const definitionListPlugin = ViewPlugin.fromClass(class {
 
 export default class DefinitionListPlugin extends Plugin {
     async onload() {
-        console.log('Loading DefinitionListPlugin');
         // Register the post processor for reading mode
         this.registerMarkdownPostProcessor(this.definitionListPostProcessor);
 
@@ -132,98 +131,92 @@ export default class DefinitionListPlugin extends Plugin {
 
     // Post-processor for handling definition lists in reading mode
     definitionListPostProcessor: MarkdownPostProcessor = (element, context) => {
+        function isNotTerm(content: string): boolean {
+            return (
+                content.match(/^#+\s/) !== null || // Heading
+                content.match(/^\s*(-|\d+\.)\s/) !== null || // List item
+                content.startsWith('>') || // Blockquote
+                content.startsWith('<img') || // Image
+                content.match(/^(-{3,}|\*{3,}|_{3,})/) !== null || // Horizontal rule
+                content.startsWith('[^') || // Footnote
+                content.includes('class="footnote-backref footnote-link"') || // Footnote backref
+                content.startsWith('|') || // Table
+                content.startsWith('$$') || // Math block
+                content.startsWith('^') // Link reference
+            );
+        }
+    
         const paragraphs = element.querySelectorAll("p");
     
-        paragraphs.forEach((paragraph) => {
+        paragraphs.forEach((paragraph, paragraphIndex) => {
             const lines = paragraph.innerHTML.split('<br>');
             let dl: HTMLDListElement | null = null;
             let currentTerm: string | null = null;
-            let isDefinitionList = false;
-            let skipNextLine = false;
-    
-            function isNotTerm(line: string): boolean {
-                return (
-                    line.startsWith('#') || // Heading
-                    line.match(/^(-|\*|\+|\d+\.)\s/) !== null || // List item
-                    line.startsWith('<img') || // Image
-                    line.match(/^(-{3,}|\*{3,}|_{3,})/) !== null || // Horizontal rule
-                    line.startsWith('[^') || // Footnote
-                    line.startsWith('|') || // Table
-                    line.startsWith('$$') || // Math block
-                    line.startsWith('^') || // Link reference
-                    line.includes('class="footnote-backref footnote-link"') // Footnote backref
-                );
-            }
+            let newContent: (HTMLElement | string)[] = [];
+            let invalidateCurrentPair = false;
     
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i].trim();
                 const nextLine = i < lines.length - 1 ? lines[i + 1].trim() : '';
-                const definitionMatch = line.match(/^([:~])\s(.+)/);
-                const indentedDefinitionMatch = line.match(/^\s{1,2}([:~])\s(.+)/);
+                const definitionMatch = line.match(/^(\s*)([:~])\s(.+)/);
+                const isNextLineDefinition = nextLine.match(/^(\s*)([:~])\s(.+)/);
     
-                if (skipNextLine) {
-                    skipNextLine = false;
-                    continue;
-                }
-                
-                console.log(line)
-                // Check if the current line or the next line is part of a footnote
-                if (isNotTerm(line) || isNotTerm(nextLine)) {
-                    // If it's a footnote or other non-term content, reset the definition list state
-                    isDefinitionList = false;
-                    currentTerm = null;
-                    continue;
-                }
     
-                if ((definitionMatch || indentedDefinitionMatch) && (isDefinitionList || currentTerm)) {
-                    if (!dl) {
-                        dl = document.createElement('dl');
+                if (definitionMatch && !invalidateCurrentPair) {
+                    if (definitionMatch[3].includes('class="footnote-backref footnote-link"')) {
+                        invalidateCurrentPair = true;
                     }
-    
-                    if (currentTerm) {
-                        const dt = document.createElement('dt');
-                        dt.innerHTML = currentTerm;
-                        dl.appendChild(dt);
-                        currentTerm = null;
-                    }
-    
-                    const dd = document.createElement('dd');
-                    dd.innerHTML = (definitionMatch ? definitionMatch[2] : indentedDefinitionMatch![2]);
-                    dl.appendChild(dd);
-                    isDefinitionList = true;
-                } else if ((nextLine.match(/^[:~]\s/) || nextLine.match(/^\s{1,2}[:~]\s/))) {
-                    // This line is a term
-                    if (currentTerm) {
-                        // If there's a previous term, add it to the list
+                    
+                    if (currentTerm && !invalidateCurrentPair) {
                         if (!dl) {
                             dl = document.createElement('dl');
+                            newContent.push(dl);
+                            const dt = document.createElement('dt');
+                            dt.innerHTML = currentTerm;
+                            dl.appendChild(dt);
                         }
-                        const dt = document.createElement('dt');
-                        dt.innerHTML = currentTerm;
-                        dl.appendChild(dt);
+                        const dd = document.createElement('dd');
+                        dd.innerHTML = definitionMatch[3];
+                        dl.appendChild(dd);
+                    } else {
+                        if (currentTerm) {
+                            newContent.push(currentTerm + '<br>');
+                        }
+                        newContent.push(line + '<br>');
+                        currentTerm = null;
+                        invalidateCurrentPair = false;
+                    }
+                } else if (isNextLineDefinition && !isNotTerm(line) && !invalidateCurrentPair) {
+                    if (currentTerm) {
+                        newContent.push(currentTerm + '<br>');
                     }
                     currentTerm = line;
-                    isDefinitionList = true;
+                    dl = null;
                 } else {
-                    // End of definition list
                     if (currentTerm) {
-                        const dt = document.createElement('dt');
-                        dt.innerHTML = currentTerm;
-                        dl!.appendChild(dt);
+                        newContent.push(currentTerm + '<br>');
                         currentTerm = null;
                     }
-                    isDefinitionList = false;
+                    newContent.push(line + '<br>');
+                    dl = null;
+                    invalidateCurrentPair = false;
                 }
-            }
     
-            if (dl && dl.childNodes.length > 0) {
-                // Replace the paragraph with the definition list
-                paragraph.replaceWith(dl);
             }
+
+            paragraph.innerHTML = '';
+            newContent.forEach(content => {
+                if (typeof content === 'string') {
+                    paragraph.innerHTML += content;
+                } else {
+                    paragraph.appendChild(content);
+                }
+            });
+    
         });
     };
 
     onunload() {
-        console.log('Unloading DefinitionListPlugin');
+        // Placeholder
     }
 }
