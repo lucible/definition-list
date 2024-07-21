@@ -30,14 +30,13 @@ const definitionListPlugin = ViewPlugin.fromClass(class {
         const selection = view.state.selection;
     
         let inCodeBlock = false;
-        let lastNonBlankLineWasTermOrDefinition = false;
-        let consecutiveBlankLines = 0;
+        let lastLineWasTerm = false;
+        let lastLineWasDefinition = false;
     
         function isNotTerm(content: string): boolean {
             return (
                 content.match(/^#+\s/) !== null || // Heading
                 content.match(/^\s*(-|\d+\.)\s/) !== null || // List item
-                content.startsWith('>') || // Blockquote
                 content.startsWith('![') || // Image
                 content.match(/^(-{3,}|\*{3,}|_{3,})/) !== null || // Horizontal rule
                 content.startsWith('[^') || // Footnote
@@ -54,14 +53,14 @@ const definitionListPlugin = ViewPlugin.fromClass(class {
     
             if (trimmedLineText.startsWith('```')) {
                 inCodeBlock = !inCodeBlock;
-                lastNonBlankLineWasTermOrDefinition = false;
-                consecutiveBlankLines = 0;
+                lastLineWasTerm = false;
+                lastLineWasDefinition = false;
                 continue;
             }
     
             if (inCodeBlock) {
-                lastNonBlankLineWasTermOrDefinition = false;
-                consecutiveBlankLines = 0;
+                lastLineWasTerm = false;
+                lastLineWasDefinition = false;
                 continue;
             }
     
@@ -69,10 +68,11 @@ const definitionListPlugin = ViewPlugin.fromClass(class {
             const nextLine = i < doc.lines ? doc.line(i + 1).text : '';
             const isNextLineDefinition = nextLine.trim().match(/^(\s{0,2})([:~])\s/);
     
-            if (isNotTerm(trimmedLineText)) {
-                lastNonBlankLineWasTermOrDefinition = false;
-                consecutiveBlankLines = 0;
-            } else if (definitionMatch && lastNonBlankLineWasTermOrDefinition) {
+            if (trimmedLineText === '') {
+                // Reset the state when encountering a blank line
+                lastLineWasTerm = false;
+                lastLineWasDefinition = false;
+            } else if (definitionMatch && (lastLineWasTerm || lastLineWasDefinition)) {
                 const [fullMatch, indent, marker] = definitionMatch;
                 const isIndented = indent.length > 0;
     
@@ -83,7 +83,7 @@ const definitionListPlugin = ViewPlugin.fromClass(class {
     
                 // Add mark decoration for the indentation + definition mark
                 const indentStartPos = line.from;
-                const markerEndPos = indentStartPos + indent.length + marker.length + 1; // +1 for the space after the marker
+                const markerEndPos = indentStartPos + indent.length + marker.length + 1;
     
                 const isCursorTouchingIndentOrMarker = selection.ranges.some(range => 
                     range.from <= markerEndPos && range.to >= indentStartPos
@@ -99,20 +99,18 @@ const definitionListPlugin = ViewPlugin.fromClass(class {
                     }));
                 }
     
-                lastNonBlankLineWasTermOrDefinition = true;
-                consecutiveBlankLines = 0;
+                lastLineWasDefinition = true;
+                lastLineWasTerm = false;
             } else if (isNextLineDefinition && !isNotTerm(trimmedLineText)) {
                 // This is a term (dt) line
                 builder.add(line.from, line.from, Decoration.line({
                     attributes: { class: "definition-list-dt" }
                 }));
-                lastNonBlankLineWasTermOrDefinition = true;
-                consecutiveBlankLines = 0;
-            } else if (trimmedLineText === '') {
-                consecutiveBlankLines++;
+                lastLineWasTerm = true;
+                lastLineWasDefinition = false;
             } else {
-                lastNonBlankLineWasTermOrDefinition = false;
-                consecutiveBlankLines = 0;
+                lastLineWasTerm = false;
+                lastLineWasDefinition = false;
             }
         }
     
