@@ -62,13 +62,15 @@ const definitionListPlugin = ViewPlugin.fromClass(class {
                 lastLineWasList = true;
                 lastLineWasHeading = false;
             } else if (definitionMatch && !lastLineWasHeading && !lastLineWasList) {
+                const [fullMatch, indent, marker] = definitionMatch;
+                const isIndented = indent.length > 0;
+
                 // Add line decoration for the whole definition
                 builder.add(line.from, line.from, Decoration.line({
-                    attributes: { class: "definition-list-dd" }
+                    attributes: { class: isIndented ? "definition-list-dd-indented" : "definition-list-dd-reg" }
                 }));
 
                 // Add mark decoration for the indentation + definition mark
-                const [fullMatch, indent, marker] = definitionMatch;
                 const indentStartPos = line.from + blockquotePrefix.length;
                 const markerEndPos = indentStartPos + indent.length + marker.length + 1; // +1 for the space after the marker
 
@@ -86,10 +88,6 @@ const definitionListPlugin = ViewPlugin.fromClass(class {
                     }));
                 }
 
-                // Update lastTermLine if this is not an indented definition
-                if (indent.length === 0) {
-                    lastTermLine = i - 1;
-                }
             } else if ((isNextLineDefinition || i === lastTermLine + 1) && !isHeading && !isListItem) {
                 // This is a term (dt) line
                 builder.add(line.from, line.from, Decoration.line({
