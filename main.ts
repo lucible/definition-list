@@ -152,7 +152,8 @@ export default class DefinitionListPlugin extends Plugin {
                     line.startsWith('[^') || // Footnote
                     line.startsWith('|') || // Table
                     line.startsWith('$$') || // Math block
-                    line.startsWith('^') // Link reference
+                    line.startsWith('^') || // Link reference
+                    line.includes('class="footnote-backref footnote-link"') // Footnote backref
                 );
             }
     
@@ -164,6 +165,14 @@ export default class DefinitionListPlugin extends Plugin {
     
                 if (skipNextLine) {
                     skipNextLine = false;
+                    continue;
+                }
+    
+                // Check if the current line or the next line is part of a footnote
+                if (isNotTerm(line) || isNotTerm(nextLine)) {
+                    // If it's a footnote or other non-term content, reset the definition list state
+                    isDefinitionList = false;
+                    currentTerm = null;
                     continue;
                 }
     
@@ -183,7 +192,7 @@ export default class DefinitionListPlugin extends Plugin {
                     dd.innerHTML = (definitionMatch ? definitionMatch[2] : indentedDefinitionMatch![2]);
                     dl.appendChild(dd);
                     isDefinitionList = true;
-                } else if ((nextLine.match(/^[:~]\s/) || nextLine.match(/^\s{1,2}[:~]\s/)) && !isNotTerm(line)) {
+                } else if ((nextLine.match(/^[:~]\s/) || nextLine.match(/^\s{1,2}[:~]\s/))) {
                     // This line is a term
                     if (currentTerm) {
                         // If there's a previous term, add it to the list
@@ -196,7 +205,7 @@ export default class DefinitionListPlugin extends Plugin {
                     }
                     currentTerm = line;
                     isDefinitionList = true;
-                } else if (isDefinitionList) {
+                } else {
                     // End of definition list
                     if (currentTerm) {
                         const dt = document.createElement('dt');
@@ -205,12 +214,6 @@ export default class DefinitionListPlugin extends Plugin {
                         currentTerm = null;
                     }
                     isDefinitionList = false;
-                } else if (isNotTerm(line)) {
-                    // If it's not a term, reset the definition list state
-                    isDefinitionList = false;
-                    currentTerm = null;
-                    // Don't skip the next line, as it might be part of the non-term content
-                    // skipNextLine = true;
                 }
             }
     
