@@ -147,7 +147,7 @@ export default class DefinitionListPlugin extends Plugin {
                 return (
                     line.startsWith('#') || // Heading
                     line.match(/^(-|\*|\+|\d+\.)\s/) !== null || // List item
-                    line.startsWith('![') || // Image
+                    line.startsWith('<img') || // Image
                     line.match(/^(-{3,}|\*{3,}|_{3,})/) !== null || // Horizontal rule
                     line.startsWith('[^') || // Footnote
                     line.startsWith('|') || // Table
@@ -167,7 +167,8 @@ export default class DefinitionListPlugin extends Plugin {
                     skipNextLine = false;
                     continue;
                 }
-    
+                
+                console.log(line)
                 // Check if the current line or the next line is part of a footnote
                 if (isNotTerm(line) || isNotTerm(nextLine)) {
                     // If it's a footnote or other non-term content, reset the definition list state
