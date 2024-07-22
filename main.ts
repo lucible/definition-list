@@ -2,6 +2,13 @@ import { Plugin, MarkdownPostProcessor } from 'obsidian';
 import { EditorView, ViewUpdate, ViewPlugin, DecorationSet, Decoration } from '@codemirror/view';
 import { RangeSetBuilder } from '@codemirror/state';
 
+// Constants for regex patterns and strings
+const CODE_BLOCK_DELIMITER = '```';
+const DEFINITION_REGEX = /^(\s*)([:~])\s/;
+const HEADING_REGEX = /^#+\s/;
+const LIST_ITEM_REGEX = /^\s*(\*|\+|-|\d+\.)\s/;
+const HORIZONTAL_RULE_REGEX = /^(-{3,}|\*{3,}|_{3,})/;
+
 function isLivePreview(view: EditorView): boolean {
     const editorEl = view.dom.closest('.markdown-source-view');
     return editorEl?.classList.contains('is-live-preview') ?? false;
@@ -14,13 +21,13 @@ const definitionListPlugin = ViewPlugin.fromClass(class {
         this.decorations = this.buildDecorations(view);
     }
 
-    update(update: ViewUpdate) {
+    update(update: ViewUpdate): void {
         if (update.docChanged || update.viewportChanged || update.selectionSet) {
             this.decorations = this.buildDecorations(update.view);
         }
     }
 
-    buildDecorations(view: EditorView) {
+    buildDecorations(view: EditorView): DecorationSet {
         if (!isLivePreview(view)) {
             return Decoration.none;
         }
@@ -35,14 +42,14 @@ const definitionListPlugin = ViewPlugin.fromClass(class {
     
         function isNotTerm(content: string): boolean {
             return (
-                content.match(/^#+\s/) !== null || // Heading
-                content.match(/^\s*(-|\d+\.)\s/) !== null || // List item
-                content.startsWith('![') || // Image
-                content.match(/^(-{3,}|\*{3,}|_{3,})/) !== null || // Horizontal rule
-                content.startsWith('[^') || // Footnote
-                content.startsWith('|') || // Table
-                content.startsWith('$$') || // Math block
-                content.startsWith('^') // Link reference
+                HEADING_REGEX.test(content) ||
+                LIST_ITEM_REGEX.test(content) ||
+                content.startsWith('![') ||
+                HORIZONTAL_RULE_REGEX.test(content) ||
+                content.startsWith('[^') ||
+                content.startsWith('|') ||
+                content.startsWith('$$') ||
+                content.startsWith('^')
             );
         }
     
@@ -51,7 +58,7 @@ const definitionListPlugin = ViewPlugin.fromClass(class {
             const lineText = line.text;
             const trimmedLineText = lineText.trim();
     
-            if (trimmedLineText.startsWith('```')) {
+            if (trimmedLineText === CODE_BLOCK_DELIMITER) {
                 inCodeBlock = !inCodeBlock;
                 lastLineWasTerm = false;
                 lastLineWasDefinition = false;
@@ -64,22 +71,26 @@ const definitionListPlugin = ViewPlugin.fromClass(class {
                 continue;
             }
     
-            const definitionMatch = lineText.match(/^(\s*)([:~])\s/);
+            const definitionMatch = DEFINITION_REGEX.exec(lineText);
             const nextLine = i < doc.lines ? doc.line(i + 1).text : '';
-            const isNextLineDefinition = nextLine.trim().match(/^(\s{0,2})([:~])\s/);
+            const isNextLineDefinition = DEFINITION_REGEX.test(nextLine.trim());
     
             if (trimmedLineText === '') {
                 // Reset the state when encountering a blank line
                 lastLineWasTerm = false;
                 lastLineWasDefinition = false;
             } else if (definitionMatch && (lastLineWasTerm || lastLineWasDefinition)) {
-                const [fullMatch, indent, marker] = definitionMatch;
+                const [, indent, marker] = definitionMatch;
                 const isIndented = indent.length > 0;
     
                 // Add line decoration for the whole definition
-                builder.add(line.from, line.from, Decoration.line({
-                    attributes: { class: isIndented ? "definition-list-dd-indented" : "definition-list-dd-reg" }
-                }));
+                builder.add(
+                    line.from,
+                    line.from,
+                    Decoration.line({
+                        attributes: { class: isIndented ? "dl-dd-indent" : "dl-dd-reg" }
+                    })
+                );
     
                 // Add mark decoration for the indentation + definition mark
                 const indentStartPos = line.from;
@@ -89,23 +100,25 @@ const definitionListPlugin = ViewPlugin.fromClass(class {
                     range.from <= markerEndPos && range.to >= indentStartPos
                 );
     
-                if (isCursorTouchingIndentOrMarker) {
-                    builder.add(indentStartPos, markerEndPos, Decoration.mark({
-                        attributes: { class: "definition-list-visible-marker" }
-                    }));
-                } else {
-                    builder.add(indentStartPos, markerEndPos, Decoration.mark({
-                        attributes: { class: "definition-list-hidden-marker" }
-                    }));
-                }
+                builder.add(
+                    indentStartPos,
+                    markerEndPos,
+                    Decoration.mark({
+                        attributes: { class: isCursorTouchingIndentOrMarker ? "dl-marker" : "dl-hidden-marker" }
+                    })
+                );
     
                 lastLineWasDefinition = true;
                 lastLineWasTerm = false;
             } else if (isNextLineDefinition && !isNotTerm(trimmedLineText)) {
                 // This is a term (dt) line
-                builder.add(line.from, line.from, Decoration.line({
-                    attributes: { class: "definition-list-dt" }
-                }));
+                builder.add(
+                    line.from,
+                    line.from,
+                    Decoration.line({
+                        attributes: { class: "dl-dt" }
+                    })
+                );
                 lastLineWasTerm = true;
                 lastLineWasDefinition = false;
             } else {
@@ -121,7 +134,7 @@ const definitionListPlugin = ViewPlugin.fromClass(class {
 });
 
 export default class DefinitionListPlugin extends Plugin {
-    async onload() {
+    async onload(): Promise<void> {
         // Register the post processor for reading mode
         this.registerMarkdownPostProcessor(this.definitionListPostProcessor);
 
@@ -130,7 +143,7 @@ export default class DefinitionListPlugin extends Plugin {
     }
 
     // Post-processor for handling definition lists in reading mode
-    definitionListPostProcessor: MarkdownPostProcessor = (element, context) => {
+    definitionListPostProcessor: MarkdownPostProcessor = (element: HTMLElement): void => {
         function isNotTerm(content: string): boolean {
             return (
                 content.match(/^#+\s/) !== null || // Heading
@@ -148,7 +161,7 @@ export default class DefinitionListPlugin extends Plugin {
     
         const paragraphs = element.querySelectorAll("p");
     
-        paragraphs.forEach((paragraph, paragraphIndex) => {
+        paragraphs.forEach((paragraph) => {
             const lines = paragraph.innerHTML.split('<br>');
             let dl: HTMLDListElement | null = null;
             let currentTerm: string | null = null;

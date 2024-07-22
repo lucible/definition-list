@@ -4,11 +4,11 @@ dl dt {
 }
 
 /* live preview */
-.definition-list-dt {
+.dl-dt {
   font-weight: bold;
 }
 
-.definition-list-dd-reg {
+.dl-dd-reg {
   display: inline-block;
   width: calc(100% - 40px);
   padding-left: 40px !important;
@@ -16,7 +16,7 @@ dl dt {
   /* padding-bottom: 0.75em !important; */
 }
 
-.definition-list-dd-indented {
+.dl-dd-indent {
   display: inline-block;
   width: calc(100% - 40px);
   padding-left: 40px !important;
@@ -25,7 +25,7 @@ dl dt {
   /* padding-bottom: 0.75em !important; */
 }
 
-.definition-list-hidden-marker {
+.dl-hidden-marker {
   display: inline-block;
   overflow: hidden;
   height: 0;
