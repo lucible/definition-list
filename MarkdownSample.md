@@ -3,7 +3,7 @@ frontmatter: test
 ---
 multiple terms
 are not supported
-: it will always use the single line closest to the definition as the term.
+: plugin will always use the single line closest to the definition as the term.
 
 Paragraphs between definitions are left alone and not accidentally interpreted as a term.
 
@@ -11,7 +11,7 @@ this is a definition term
 : this is a definition
 
 2024-07-17 01:57:06 PM
-: Today's kombucha is "Hopped Blueberry"?? which is way less tasty than the blueberry mango. maybe a 3/5. Nah, the more I drink it the grosser it gets. 2/5. Been avoiding the other flavor (pineapple hibiscus) because I usually like the berry flavors more, but maybe it'd be better than this. We'll see what flavors are still around on Friday!
+: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam in diam consectetur dui volutpat sagittis pretium et odio. Maecenas accumsan quam ut tempor laoreet. Integer mattis fermentum metus a mollis. Fusce vulputate vulputate maximus. Maecenas volutpat porta aliquet. Morbi vehicula nunc nec lacus elementum egestas. Nullam aliquam bibendum ultricies. Mauris luctus hendrerit neque, id dictum eros pretium a. Suspendisse bibendum eros ut dui accumsan pellentesque. Phasellus ac neque non ante imperdiet efficitur ut sed odio. Praesent eleifend ac erat nec consequat. 
 
 This is an example term
 : this is the first definition
@@ -19,12 +19,12 @@ This is an example term
 : this is a definition on a new line. these will render as regular paragraphs, not definitions, in live preview or reading mode.
 
 this is a term
-  : with an indented definition... and it's a very very long definition so you know it's gonna breaaaaak yeah yeah yeah lots and lots of text maaann. wah. and WOOOOO HOOO this seems to work.
+  : with an indented definition... that's very long. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam in diam consectetur dui volutpat sagittis pretium et odio. Maecenas accumsan quam ut tempor laoreet. Integer mattis fermentum metus a mollis. Fusce vulputate vulputate maximus. Maecenas volutpat porta aliquet. Morbi vehicula nunc nec lacus elementum egestas. Nullam aliquam bibendum ultricies.
   : Let's add another definition.
-  : and a third definition at last at last.
+  : and a third definition.
 
 _Italic Term_
-  : with an indented definition asdflkj
+  : with an indented definition
   : and another indented definition and _italic_ and **bold** and ==highlight== and [link](https://example.com)
 
 `Code Term`
